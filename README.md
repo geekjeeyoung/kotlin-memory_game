@@ -1,3 +1,3 @@
 # kotlin-memory_game
 
-## Part 4: Create classes to manage memory game
+# 7. Start from: Add menu options for game control  /
