@@ -5,6 +5,7 @@ import `fun`.chezcandy.memories.models.BoardSize
 import `fun`.chezcandy.memories.models.MemoryCard
 import `fun`.chezcandy.memories.models.MemoryGame
 import `fun`.chezcandy.memories.utils.DEFAULT_ICONS
+import `fun`.chezcandy.memories.utils.EXTRA_BOARD_SIZE
 import android.animation.ArgbEvaluator
 import android.content.Context
 import android.content.Intent
@@ -33,7 +34,9 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+        private const val CREATE_REQUEST_CODE = 248
     }
+
 
     private lateinit var clRoot: CoordinatorLayout
     private lateinit var rvBoard: RecyclerView
@@ -99,10 +102,11 @@ class MainActivity : AppCompatActivity() {
                 R.id.rbMedium -> BoardSize.MEDIUM
                 else -> BoardSize.HARD
             }
-            // Bookmark
+            val intent = Intent(this, CreateActivity::class.java)
+            intent.putExtra(EXTRA_BOARD_SIZE, desiredBoardSize)
+            startActivityForResult(intent, CREATE_REQUEST_CODE)
         })
     }
-
 
 
     private fun showNewSizeDialog() {
