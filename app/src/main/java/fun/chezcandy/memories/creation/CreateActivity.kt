@@ -19,6 +19,7 @@ import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
 
 class CreateActivity : AppCompatActivity() {
+
     companion object {
         private const val TAG = "CreateActivity"
         private const val PICK_PHOTO_CODE = 655
@@ -60,11 +61,10 @@ class CreateActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {
                 btnSave.isEnabled = shouldEnableSaveButton()
             }
-
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
-        
+        // Bookmark
     }
 
     private fun shouldEnableSaveButton(): Boolean {

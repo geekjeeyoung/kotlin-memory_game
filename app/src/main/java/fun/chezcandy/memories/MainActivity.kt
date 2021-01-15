@@ -7,6 +7,7 @@ import `fun`.chezcandy.memories.models.MemoryGame
 import `fun`.chezcandy.memories.utils.DEFAULT_ICONS
 import `fun`.chezcandy.memories.utils.EXTRA_BOARD_SIZE
 import android.animation.ArgbEvaluator
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -91,6 +92,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         return super.onOptionsItemSelected(item)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode=== CREATE_REQUEST_CODE && resultCode==Activity.RESULT_OK) {
+            // Bookmark
+        }
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     private fun showCreationDialog() {
