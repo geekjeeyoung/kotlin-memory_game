@@ -6,6 +6,7 @@ import `fun`.chezcandy.memories.models.MemoryCard
 import `fun`.chezcandy.memories.models.MemoryGame
 import `fun`.chezcandy.memories.utils.DEFAULT_ICONS
 import `fun`.chezcandy.memories.utils.EXTRA_BOARD_SIZE
+import `fun`.chezcandy.memories.utils.EXTRA_GAME_NAME
 import android.animation.ArgbEvaluator
 import android.app.Activity
 import android.content.Context
@@ -46,7 +47,7 @@ class MainActivity : AppCompatActivity() {
 
     private val db = Firebase.firestore
     private var gameName: String? = null
-
+    private var customGameImages: List<String>? = null
     private lateinit var memoryGame: MemoryGame
     private lateinit var adapter: MemoryBoardAdapter
     private var boardSize: BoardSize = BoardSize.EASY
@@ -88,17 +89,26 @@ class MainActivity : AppCompatActivity() {
                 showCreationDialog()
                 return true
             }
-
+            // R.id.mi_download
         }
 
         return super.onOptionsItemSelected(item)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode=== CREATE_REQUEST_CODE && resultCode==Activity.RESULT_OK) {
-            // Bookmark
+        if (requestCode === CREATE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            val customGameName = data?.getStringExtra(EXTRA_GAME_NAME)
+            if (customGameName == null) {
+                Log.e(TAG, "GOT null custom game name from CreateActivity")
+                return
+            }
+            downloadGame(customGameName)
         }
         super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    private fun downloadGame(customGameName: String) {
+
     }
 
     private fun showCreationDialog() {
@@ -131,6 +141,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.rbMedium -> BoardSize.MEDIUM
                 else -> BoardSize.HARD
             }
+            gameName = null
+            customGameImages = null
             setupBoard()
         })
     }
@@ -147,9 +159,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupBoard() {
+        supportActionBar?.title = gameName ?: getString(R.string.app_name)
         memoryGame = MemoryGame(boardSize)
-
-
         when (boardSize) {
             BoardSize.EASY -> {
                 tvNumMoves.text = "Easy: 4 x 2"
@@ -165,8 +176,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
         tvNumPairs.setTextColor(ContextCompat.getColor(this, R.color.color_progress_none))
-
-
         adapter = MemoryBoardAdapter(
             this,
             boardSize,
