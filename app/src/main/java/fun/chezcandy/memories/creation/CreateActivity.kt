@@ -20,6 +20,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -34,6 +35,8 @@ class CreateActivity : AppCompatActivity() {
         private const val PICK_PHOTO_CODE = 655
         private const val READ_EXTERNAL_PHOTOS_CODE = 248
         private const val READ_PHOTOS_PERMISSION = Manifest.permission.READ_EXTERNAL_STORAGE
+        private const val MAX_GAME_NAME_LENGTH = 14
+        private const val MIN_GAME_NAME_LENGTH = 3
     }
 
     private lateinit var rvImagePicker: RecyclerView
@@ -66,7 +69,7 @@ class CreateActivity : AppCompatActivity() {
             saveDataToFirebase()
         }
 
-        etGameName.filters = arrayOf(InputFilter.LengthFilter(14))
+        etGameName.filters = arrayOf(InputFilter.LengthFilter(MAX_GAME_NAME_LENGTH))
         etGameName.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 btnSave.isEnabled = shouldEnableSaveButton()
@@ -97,11 +100,6 @@ class CreateActivity : AppCompatActivity() {
         rvImagePicker.setHasFixedSize(true)
         rvImagePicker.layoutManager = GridLayoutManager(this, boardSize.getWidth())
     }
-
-    private fun saveDataToFirebase() {
-        // bookmark
-    }
-
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
@@ -140,8 +138,8 @@ class CreateActivity : AppCompatActivity() {
             return
         }
         Log.i(TAG, "onActivityResult")
-        val selectedUri = data.data
-        val clipData = data.clipData
+        val selectedUri = data.data // one photo
+        val clipData = data.clipData // multiple photos
         if (clipData != null) {
             Log.i(TAG, "clipData numImages ${clipData.itemCount}: $clipData")
             for (i in 0 until clipData.itemCount) {
@@ -164,7 +162,7 @@ class CreateActivity : AppCompatActivity() {
         if (chosenImageUris.size != numImagesRequired) {
             return false
         }
-        if (etGameName.text.isBlank() || etGameName.text.length < 3) {
+        if (etGameName.text.isBlank() || etGameName.text.length < MIN_GAME_NAME_LENGTH) {
             return false
         }
         return true
@@ -177,5 +175,29 @@ class CreateActivity : AppCompatActivity() {
         startActivityForResult(Intent.createChooser(intent, "Choose pics"), PICK_PHOTO_CODE)
     }
 
+    private fun saveDataToFirebase() {
+        Log.i(TAG, "Going to save data to Firebase")
+        val customGameName = etGameName.text.toString().trim()
+        btnSave.isEnabled = false
+        db.collection("games").document(customGameName).get().addOnSuccessListener { document ->
+            if (document != null && document.data != null) {
+                AlertDialog.Builder(this).setTitle("Name Taken")
+                    .setMessage("A game already exists with the name '$customGameName'. Please choose another")
+                    .setPositiveButton("OK", null)
+                    .show()
+                btnSave.isEnabled = true
+            } else {
+                handleImageUploading(customGameName)
+            }
+        }.addOnFailureListener { exception ->
+            Log.e(TAG, "Encountered error while saving memory game", exception)
+            Toast.makeText(this, "Encountered error while saving memory game", Toast.LENGTH_SHORT)
+                .show()
+        }
 
+    }
+
+    private fun handleImageUploading(gameName: String) {
+
+    }
 }
