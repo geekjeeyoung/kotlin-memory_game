@@ -2,20 +2,23 @@ package `fun`.chezcandy.memories.creation
 
 import `fun`.chezcandy.memories.R
 import `fun`.chezcandy.memories.models.BoardSize
-import `fun`.chezcandy.memories.utils.EXTRA_BOARD_SIZE
-import `fun`.chezcandy.memories.utils.isPermissionGranted
-import `fun`.chezcandy.memories.utils.requestPermission
+import `fun`.chezcandy.memories.utils.*
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
 import android.util.Log
 import android.view.MenuItem
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
@@ -27,6 +30,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import java.io.ByteArrayOutputStream
 
 class CreateActivity : AppCompatActivity() {
 
@@ -198,6 +202,72 @@ class CreateActivity : AppCompatActivity() {
     }
 
     private fun handleImageUploading(gameName: String) {
+        pbUploading.visibility = View.VISIBLE
+        val uploadedImageUrls = mutableListOf<String>()
+        var didEncounterError = false
+        for ((index, photoUri) in chosenImageUris.withIndex()) {
+            val imageByteArray = getImageByteArray(photoUri)
+            val filePath = "images/$gameName/${System.currentTimeMillis()}-${index}.jpg"
+            val photoReference = storage.reference.child(filePath)
+            photoReference.putBytes(imageByteArray).continueWithTask { photoUploadTask ->
+                Log.i(TAG, "uploaded bytes: ${photoUploadTask.result?.bytesTransferred}")
+                photoReference.downloadUrl
+            }.addOnCompleteListener { downloadUrlTask ->
+                if (!downloadUrlTask.isSuccessful) {
+                    Log.e(TAG, "Exception with Firebase storage", downloadUrlTask.exception)
+                    Toast.makeText(this, "Failed to upload image", Toast.LENGTH_SHORT).show()
+                    didEncounterError = true
+                    return@addOnCompleteListener
+                }
+                if (didEncounterError) {
+                    pbUploading.visibility = View.GONE
+                    return@addOnCompleteListener
+                }
+                pbUploading.progress = uploadedImageUrls.size * 100 / chosenImageUris.size
+                val downloadUrl = downloadUrlTask.result.toString()
+                uploadedImageUrls.add(downloadUrl)
+                Log.i(TAG, "Finished uploading $photoUri, Num uploaded: ${uploadedImageUrls.size}")
+                if (uploadedImageUrls.size == chosenImageUris.size) {
+                    handleAllImagesUploaded(gameName, uploadedImageUrls)
+                }
+            }
+        }
+    }
 
+    private fun handleAllImagesUploaded(gameName: String, imageUrls: MutableList<String>) {
+        db.collection("games").document(gameName)
+            .set(mapOf("images" to imageUrls))
+            .addOnCompleteListener { gameCreationTask ->
+                pbUploading.visibility = View.GONE
+                if (!gameCreationTask.isSuccessful) {
+                    Log.e(TAG, "Exception with game creation", gameCreationTask.exception)
+                    Toast.makeText(this, "Failed game creation", Toast.LENGTH_SHORT).show()
+                    return@addOnCompleteListener
+                }
+                Log.i(TAG, "Successfully created game $gameName")
+                AlertDialog.Builder(this)
+                    .setTitle("Uploaded complete! Let's play your game '$gameName'")
+                    .setPositiveButton("OK") { _, _ ->
+                        val resultData = Intent()
+                        resultData.putExtra(EXTRA_GAME_NAME, gameName)
+                        setResult(Activity.RESULT_OK, resultData)
+                        finish()
+                    }.show()
+            }
+    }
+
+    private fun getImageByteArray(photoUri: Uri): ByteArray {
+        val originalBitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val source = ImageDecoder.createSource(contentResolver, photoUri)
+            ImageDecoder.decodeBitmap(source)
+        } else {
+            MediaStore.Images.Media.getBitmap(contentResolver, photoUri)
+        }
+        Log.i(TAG, "Original width ${originalBitmap.width} and height ${originalBitmap.height}")
+        val scaledBitmap = BitmapScaler.scaleToFitHeight(originalBitmap, 250)
+        Log.i(TAG, "Scaled width ${scaledBitmap.width} and height ${scaledBitmap.height}")
+        val byteOutputStream = ByteArrayOutputStream()
+        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 60, byteOutputStream)
+        return byteOutputStream.toByteArray()
     }
 }
