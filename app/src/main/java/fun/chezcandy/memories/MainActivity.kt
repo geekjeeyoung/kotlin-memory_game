@@ -140,7 +140,9 @@ class MainActivity : AppCompatActivity() {
             }
             Snackbar.make(clRoot, "You're now playing '$customGameName'!", Snackbar.LENGTH_LONG)
                 .show()
+
             setupBoard()
+
         }.addOnFailureListener { exception ->
             Log.e(TAG, "Exception when retrieving game", exception)
         }
