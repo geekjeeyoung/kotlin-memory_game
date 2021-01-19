@@ -2,14 +2,12 @@ package `fun`.chezcandy.memories
 
 import `fun`.chezcandy.memories.creation.CreateActivity
 import `fun`.chezcandy.memories.models.BoardSize
-import `fun`.chezcandy.memories.models.MemoryCard
 import `fun`.chezcandy.memories.models.MemoryGame
-import `fun`.chezcandy.memories.utils.DEFAULT_ICONS
+import `fun`.chezcandy.memories.models.UserImageList
 import `fun`.chezcandy.memories.utils.EXTRA_BOARD_SIZE
 import `fun`.chezcandy.memories.utils.EXTRA_GAME_NAME
 import android.animation.ArgbEvaluator
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
@@ -19,10 +17,10 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.EditText
 import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.GridLayoutManager
@@ -31,6 +29,7 @@ import com.github.jinatonic.confetti.CommonConfetti
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import com.squareup.picasso.Picasso
 
 class MainActivity : AppCompatActivity() {
 
@@ -89,9 +88,11 @@ class MainActivity : AppCompatActivity() {
                 showCreationDialog()
                 return true
             }
-            // R.id.mi_download
+            R.id.mi_download -> {
+                showDownloadDialog()
+                return true
+            }
         }
-
         return super.onOptionsItemSelected(item)
     }
 
@@ -107,8 +108,42 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
     }
 
-    private fun downloadGame(customGameName: String) {
+    private fun showDownloadDialog() {
+        val boardDownloadView =
+            LayoutInflater.from(this).inflate(R.layout.dialog_download_board, null)
+        showAlertDialog("Fetch memory game", boardDownloadView, View.OnClickListener {
+            val etDownloadGame = boardDownloadView.findViewById<EditText>(R.id.etDownloadGame)
+            val gameToDownload = etDownloadGame.text.toString().trim()
+            downloadGame(gameToDownload)
+        })
+    }
 
+    private fun downloadGame(customGameName: String) {
+        db.collection("games").document(customGameName).get().addOnSuccessListener { document ->
+            val userImageList = document.toObject(UserImageList::class.java)
+            if (userImageList?.images == null) {
+                Log.e(TAG, "Invalid custom game data from Firebase")
+                Snackbar.make(
+                    clRoot,
+                    "Sorry, we couldn't find any such game, '$customGameName'",
+                    Snackbar.LENGTH_LONG
+                ).show()
+                return@addOnSuccessListener
+            }
+            val numCards = userImageList.images.size * 2
+            boardSize = BoardSize.getByValue(numCards)
+            customGameImages = userImageList.images
+            gameName = customGameName
+            // Pre-fetch the images for faster loading
+            for (imageUrl in userImageList.images) {
+                Picasso.get().load(imageUrl).fetch()
+            }
+            Snackbar.make(clRoot, "You're now playing '$customGameName'!", Snackbar.LENGTH_LONG)
+                .show()
+            setupBoard()
+        }.addOnFailureListener { exception ->
+            Log.e(TAG, "Exception when retrieving game", exception)
+        }
     }
 
     private fun showCreationDialog() {
@@ -160,7 +195,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupBoard() {
         supportActionBar?.title = gameName ?: getString(R.string.app_name)
-        memoryGame = MemoryGame(boardSize)
+        memoryGame = MemoryGame(boardSize, customGameImages)
         when (boardSize) {
             BoardSize.EASY -> {
                 tvNumMoves.text = "Easy: 4 x 2"

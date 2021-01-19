@@ -197,6 +197,7 @@ class CreateActivity : AppCompatActivity() {
             Log.e(TAG, "Encountered error while saving memory game", exception)
             Toast.makeText(this, "Encountered error while saving memory game", Toast.LENGTH_SHORT)
                 .show()
+            btnSave.isEnabled = true
         }
 
     }
